@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# AWS CDK
+infra/.venv/
+infra/cdk.out/
+
+# IDE
+.idea/
+.vscode/
+.kiro/
+
+# macOS
+.DS_Store

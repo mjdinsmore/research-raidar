@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research rAIdar — AWS Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f4f5f7;
+    --surface:   #ffffff;
+    --aws-cloud: #f8f9fc;
+    --text:      #1a1f2e;
+    --muted:     #6b7280;
+    --lambda:    #e67e22;
+    --lambda-bg: #fff4e6;
+    --eventbridge: #8b5cf6;
+    --eventbridge-bg: #f3f0ff;
+    --bedrock:   #0ea5e9;
+    --bedrock-bg:#e0f6ff;
+    --ses:       #10b981;
+    --ses-bg:    #d1fae5;
+    --s3:        #64748b;
+    --s3-bg:     #f1f5f9;
+    --cw:        #f59e0b;
+    --cw-bg:     #fffbeb;
+    --iam:       #94a3b8;
+    --iam-bg:    #f8fafc;
+    --external:  #6b7280;
+    --ext-bg:    #f9fafb;
+    --retry:     #f97316;
+    --normal:    #475569;
+    --border:    #e2e8f0;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 36px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .diagram {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.07), 0 8px 32px rgba(0,0,0,.06);
+    width: 100%;
+    max-width: 980px;
+    position: relative;
+  }
+
+  /* AWS Cloud boundary */
+  .aws-cloud {
+    background: var(--aws-cloud);
+    border: 2px dashed #c7d2e0;
+    border-radius: 14px;
+    padding: 32px 32px 28px;
+    position: relative;
+    margin-bottom: 0;
+  }
+
+  .aws-cloud-label {
+    position: absolute;
+    top: -13px;
+    left: 20px;
+    background: var(--surface);
+    padding: 2px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-radius: 20px;
+    border: 1.5px solid #c7d2e0;
+  }
+
+  /* Grid layout inside AWS cloud */
+  .aws-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr 180px;
+    grid-template-rows: auto auto auto;
+    gap: 0;
+    align-items: center;
+  }
+
+  /* Service node */
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    position: relative;
+    transition: box-shadow .2s;
+    cursor: default;
+  }
+  .node:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+
+  .node-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .node-name {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .node-sub {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.4;
+  }
+
+  /* Color variants */
+  .node-lambda     { border-color: var(--lambda);     background: var(--lambda-bg); }
+  .node-eventbridge{ border-color: var(--eventbridge); background: var(--eventbridge-bg); }
+  .node-bedrock    { border-color: var(--bedrock);    background: var(--bedrock-bg); }
+  .node-ses        { border-color: var(--ses);        background: var(--ses-bg); }
+  .node-s3         { border-color: #94a3b8;           background: var(--s3-bg); }
+  .node-cw         { border-color: var(--cw);         background: var(--cw-bg); }
+  .node-iam        { border-color: var(--iam);        background: var(--iam-bg); }
+  .node-external   { border-color: #d1d5db;           background: var(--ext-bg); border-style: dashed; }
+
+  .icon-lambda      { background: #f97316; color: white; }
+  .icon-eventbridge { background: #8b5cf6; color: white; }
+  .icon-bedrock     { background: #0ea5e9; color: white; }
+  .icon-ses         { background: #10b981; color: white; }
+  .icon-s3          { background: #64748b; color: white; }
+  .icon-cw          { background: #f59e0b; color: white; }
+  .icon-iam         { background: #94a3b8; color: white; }
+  .icon-external    { background: #e5e7eb; color: #6b7280; }
+  .icon-appregistry { background: #6366f1; color: white; }
+
+  /* Lambda box — central, larger */
+  .lambda-box {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    background: var(--lambda-bg);
+    border: 2px solid var(--lambda);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0 24px;
+    position: relative;
+  }
+
+  .lambda-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(230, 126, 34, .25);
+  }
+
+  .lambda-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #c2410c;
+  }
+
+  .lambda-arn {
+    font-size: 10px;
+    color: #ea580c;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: white;
+    border: 1px solid rgba(230,126,34,.15);
+    transition: background .15s;
+  }
+  .step:last-child { margin-bottom: 0; }
+  .step:hover { background: #fff8f0; }
+
+  .step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--lambda);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-text {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #1a1f2e;
+  }
+
+  .step-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #ea580c;
+    margin-top: 2px;
+    display: block;
+  }
+
+  /* Connector arrows via SVG overlay */
+  .arrows-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /* Layout columns */
+  .col-left {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .col-right {
+    grid-column: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+
+  /* Row below AWS cloud — external services */
+  .external-row {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    position: relative;
+  }
+
+  .external-label {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    padding: 1px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 28px;
+    justify-content: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .legend-line {
+    width: 28px;
+    height: 2px;
+    border-radius: 2px;
+  }
+
+  .legend-line-dashed {
+    width: 28px;
+    height: 0;
+    border-top: 2px dashed;
+    border-radius: 0;
+  }
+
+  /* SVG arrows */
+  .arrow-normal { stroke: #94a3b8; }
+  .arrow-retry  { stroke: #f97316; }
+  .arrow-config { stroke: #64748b; }
+  .arrow-log    { stroke: #f59e0b; }
+
+  /* Top trigger row */
+  .trigger-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 28px;
+    position: relative;
+  }
+
+  .arrow-h {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Full layout using absolute SVG */
+  .diagram-inner {
+    position: relative;
+  }
+
+  /* Node sizing */
+  .node-sm { padding: 10px; }
+  .node-sm .node-icon { width: 32px; height: 32px; font-size: 16px; }
+  .node-sm .node-name { font-size: 11px; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-top: 3px;
+  }
+
+  .badge-retry { background: #ffedd5; color: #c2410c; }
+  .badge-daily { background: #ede9fe; color: #6d28d9; }
+  .badge-warm  { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+
+<h1>Research rAIdar</h1>
+<p class="subtitle">AWS Architecture · us-east-1</p>
+
+<div class="diagram">
+
+  <!-- TOP: Trigger -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:32px;">
+    <div class="node node-eventbridge" style="width:160px;">
+      <div class="node-icon icon-eventbridge">⚡</div>
+      <div class="node-name" style="color:#6d28d9">EventBridge Rule</div>
+      <div class="node-sub">cron(30 6 * * ? *)<br>daily 06:30 UTC</div>
+      <span class="badge badge-daily">TRIGGER</span>
+    </div>
+
+    <!-- Arrow right -->
+    <div style="display:flex;flex-direction:column;align-items:center;width:80px;gap:3px">
+      <svg width="80" height="24" viewBox="0 0 80 24">
+        <defs>
+          <marker id="ah-normal" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <polygon points="0 0, 7 3.5, 0 7" fill="#8b5cf6"/>
+          </marker>
+        </defs>
+        <line x1="4" y1="12" x2="68" y2="12" stroke="#8b5cf6" stroke-width="2" marker-end="url(#ah-normal)"/>
+      </svg>
+      <span style="font-size:9px;color:#8b5cf6;font-family:'JetBrains Mono',monospace">invoke</span>
+    </div>
+
+    <!-- Lambda box -->
+    <div class="lambda-box" style="width:420px;margin:0;">
+      <div class="lambda-header">
+        <div class="node-icon icon-lambda" style="width:34px;height:34px;font-size:18px;border-radius:7px;">λ</div>
+        <div>
+          <div class="lambda-title">research-raidar</div>
+          <div class="lambda-arn">Python 3.13 · 512 MB · 10 min timeout</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Read config from S3
+          <span class="step-detail">s3://research-raidar-dev/config.json · cached if warm ♻</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          Fetch recent papers from arXiv API
+          <span class="step-detail">export.arxiv.org · up to 80 papers · last 24h</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          Score papers via Amazon Bedrock
+          <span class="step-detail">claude-haiku-4-5 · batches of 20 · 1–10 relevance score</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          Send digest email via SES
+          <span class="step-detail">top N papers · HTML email · test@example.com</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow right to Bedrock -->
+    <div style="display:flex;flex-direction:column;align-items:center;width:80px;gap:3px">
+      <svg width="80" height="24" viewBox="0 0 80 24">
+        <defs>
+          <marker id="ah-bedrock" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <polygon points="0 0, 7 3.5, 0 7" fill="#0ea5e9"/>
+          </marker>
+        </defs>
+        <line x1="4" y1="12" x2="68" y2="12" stroke="#0ea5e9" stroke-width="2" marker-end="url(#ah-bedrock)"/>
+      </svg>
+      <span style="font-size:9px;color:#0ea5e9;font-family:'JetBrains Mono',monospace">invoke_model</span>
+    </div>
+
+    <div class="node node-bedrock" style="width:160px;">
+      <div class="node-icon icon-bedrock">🧠</div>
+      <div class="node-name" style="color:#0369a1">Amazon Bedrock</div>
+      <div class="node-sub">claude-haiku-4-5<br>InvokeModel API</div>
+    </div>
+  </div>
+
+  <!-- MIDDLE ROW: S3 (above), CloudWatch + SES (sides) -->
+  <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:0;margin-bottom:24px;">
+
+    <!-- Left: S3 + CloudWatch stacked -->
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:20px;padding-right:32px;padding-top:8px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <!-- S3 arrow up from lambda area -->
+        <div class="node node-s3" style="width:160px;">
+          <div class="node-icon icon-s3">🪣</div>
+          <div class="node-name" style="color:#475569">Amazon S3</div>
+          <div class="node-sub">research-raidar-dev<br>config.json · RemovalPolicy.RETAIN</div>
+          <span class="badge badge-warm">CONFIG</span>
+        </div>
+        <svg width="2" height="28" viewBox="0 0 2 28">
+          <defs>
+            <marker id="av-s3-down" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto">
+              <polygon points="0 0, 7 0, 3.5 7" fill="#64748b"/>
+            </marker>
+          </defs>
+          <line x1="1" y1="2" x2="1" y2="22" stroke="#64748b" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#av-s3-down)"/>
+        </svg>
+        <div style="font-size:9px;color:#64748b;font-family:'JetBrains Mono',monospace;">GetObject (cached)</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:8px;">
+        <svg width="2" height="24" viewBox="0 0 2 24">
+          <defs>
+            <marker id="av-cw" markerWidth="7" markerHeight="7" refX="3.5" refY="1" orient="auto">
+              <polygon points="0 7, 7 7, 3.5 0" fill="#f59e0b"/>
+            </marker>
+          </defs>
+          <line x1="1" y1="22" x2="1" y2="2" stroke="#f59e0b" stroke-width="2" marker-end="url(#av-cw)"/>
+        </svg>
+        <div style="font-size:9px;color:#f59e0b;font-family:'JetBrains Mono',monospace;">PutLogEvents</div>
+        <div class="node node-cw" style="width:160px;">
+          <div class="node-icon icon-cw">📋</div>
+          <div class="node-name" style="color:#b45309">CloudWatch Logs</div>
+          <div class="node-sub">/aws/lambda/research-raidar<br>RetentionPolicy · DESTROY</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Retry path -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:240px;">
+      <div style="font-size:10px;font-weight:600;color:#f97316;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Rate Limit Retry Path</div>
+      <div style="border:1.5px dashed #f97316;border-radius:10px;padding:16px 14px;background:#fff7ed;display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;">
+        <div style="font-size:10px;color:#ea580c;text-align:center;line-height:1.5;">
+          On arXiv HTTP 429<br>
+          <span style="font-family:'JetBrains Mono',monospace;">RateLimitError</span>
+        </div>
+        <svg width="16" height="20" viewBox="0 0 16 20">
+          <defs>
+            <marker id="av-retry" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto">
+              <polygon points="0 0, 7 0, 3.5 7" fill="#f97316"/>
+            </marker>
+          </defs>
+          <line x1="8" y1="2" x2="8" y2="14" stroke="#f97316" stroke-width="2" marker-end="url(#av-retry)"/>
+        </svg>
+        <div class="node node-eventbridge" style="width:170px;border-color:#f97316;background:#ffedd5;">
+          <div class="node-icon" style="background:#f97316;color:white;width:32px;height:32px;font-size:15px;border-radius:7px;">⏱</div>
+          <div class="node-name" style="color:#c2410c;font-size:11px;">EventBridge Scheduler</div>
+          <div class="node-sub">one-time · +13 min<br>ActionAfterCompletion: DELETE</div>
+          <span class="badge badge-retry">max 18 retries · ~4h</span>
+        </div>
+        <svg width="16" height="20" viewBox="0 0 16 20">
+          <defs>
+            <marker id="av-retry2" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto">
+              <polygon points="0 0, 7 0, 3.5 7" fill="#f97316"/>
+            </marker>
+          </defs>
+          <line x1="8" y1="2" x2="8" y2="14" stroke="#f97316" stroke-width="2" marker-end="url(#av-retry2)"/>
+        </svg>
+        <div style="font-size:10px;color:#ea580c;font-family:'JetBrains Mono',monospace;">invoke Lambda<br>{"attempt": N+1}</div>
+      </div>
+    </div>
+
+    <!-- Right: SES + IAM + AppRegistry -->
+    <div style="display:flex;flex-direction:column;align-items:flex-start;gap:20px;padding-left:32px;padding-top:8px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <div class="node node-ses" style="width:168px;">
+          <div class="node-icon icon-ses">✉️</div>
+          <div class="node-name" style="color:#065f46">Amazon SES</div>
+          <div class="node-sub">SendRawEmail<br>test@example.com</div>
+        </div>
+        <svg width="2" height="24" viewBox="0 0 2 24">
+          <defs>
+            <marker id="av-ses" markerWidth="7" markerHeight="7" refX="3.5" refY="1" orient="auto">
+              <polygon points="0 7, 7 7, 3.5 0" fill="#10b981"/>
+            </marker>
+          </defs>
+          <line x1="1" y1="22" x2="1" y2="2" stroke="#10b981" stroke-width="2" marker-end="url(#av-ses)"/>
+        </svg>
+        <div style="font-size:9px;color:#10b981;font-family:'JetBrains Mono',monospace;">SendRawEmail</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;align-items:center;width:168px;">
+        <div class="node node-iam" style="width:168px;">
+          <div class="node-icon icon-iam">🔐</div>
+          <div class="node-name" style="color:#64748b">IAM Role</div>
+          <div class="node-sub">s3:GetObject · bedrock:InvokeModel<br>ses:SendRawEmail · scheduler:CreateSchedule</div>
+        </div>
+        <div class="node node-iam" style="width:168px;border-color:#6366f1;background:#eef2ff;">
+          <div class="node-icon icon-appregistry" style="font-size:14px;width:32px;height:32px;">🏷</div>
+          <div class="node-name" style="color:#4338ca;font-size:11px;">AppRegistry</div>
+          <div class="node-sub">MyApplications<br>research-raidar cost tracking</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- External services -->
+  <div class="external-row">
+    <span class="external-label">External Services</span>
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div class="node node-external" style="width:170px;">
+        <div class="node-icon icon-external">📄</div>
+        <div class="node-name" style="color:#374151">arXiv API</div>
+        <div class="node-sub">export.arxiv.org<br>Atom feed · abstracts only</div>
+      </div>
+      <div style="font-size:9px;color:#9ca3af;font-family:'JetBrains Mono',monospace;">HTTP GET · cat:q-bio.GN OR cat:cs.AI ...</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div class="node node-external" style="width:170px;">
+        <div class="node-icon icon-external">📬</div>
+        <div class="node-name" style="color:#374151">Gmail</div>
+        <div class="node-sub">test@example.com<br>HTML digest email</div>
+      </div>
+      <div style="font-size:9px;color:#9ca3af;font-family:'JetBrains Mono',monospace;">delivered via SES · daily</div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-line" style="background:#8b5cf6;"></div>
+      Normal flow
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:#f97316;"></div>
+      Retry path (429)
+    </div>
+    <div class="legend-item">
+      <div class="legend-line-dashed" style="border-color:#64748b;"></div>
+      Config read (cached)
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:#f59e0b;"></div>
+      Logs
+    </div>
+    <div class="legend-item" style="margin-left:8px;">
+      <span style="font-size:10px;font-family:'JetBrains Mono',monospace;border:1.5px dashed #c7d2e0;padding:1px 8px;border-radius:4px;color:#6b7280;">- - -</span>
+      &nbsp;AWS Cloud boundary
+    </div>
+  </div>
+
+</div><!-- .diagram -->
+
+</body>
+</html>
