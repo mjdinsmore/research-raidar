@@ -23,5 +23,9 @@ infra/cdk.out/
 .vscode/
 .kiro/
 
+# Environment / secrets
+.env
+.env.*
+
 # macOS
 .DS_Store

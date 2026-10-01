@@ -2,8 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"   # always run from infra/ regardless of where script is called from
 
-SENDER=sender@example.com
-RECIPIENT=test@example.com
+SENDER="${RAIDAR_SENDER:?Set RAIDAR_SENDER in your shell profile}"
+RECIPIENT="${RAIDAR_RECIPIENT:?Set RAIDAR_RECIPIENT in your shell profile}"
 SLACK_SECRET_NAME=research-raidar-dev/slack-webhook
 CONFIG_ENV=dev
 
