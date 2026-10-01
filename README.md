@@ -33,8 +33,8 @@ cd infra && ./deploy.sh
 cd lambda
 uv pip install -r requirements.txt
 
-export SES_SENDER=test@example.com
-export SES_RECIPIENT=test@example.com
+export SES_SENDER=michael@company.com
+export SES_RECIPIENT=michael@company.com
 export CONFIG_ENV=dev           # reads s3://research-raidar-dev/config.json
 
 python -c "import handler; print(handler.handler({}, None))"
@@ -69,7 +69,7 @@ Key fields:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `categories` | `["q-bio.GN", ...]` | arXiv category codes. Full list: https://arxiv.org/category_taxonomy |
-| `min_score` | `6.0` | Papers below this score are excluded from the digest |
+| `min_score` | `60` | Papers below this score (1–100 scale) are excluded from the digest |
 | `top_n` | `5` | Max papers included regardless of score |
 | `research_interests` | *(your interests)* | Most important tuning lever — be specific |
 | `scoring_system` | *(prompt template)* | Full Claude prompt; use `[RESEARCH_INTERESTS]` as placeholder |
