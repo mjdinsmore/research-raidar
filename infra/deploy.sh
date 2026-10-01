@@ -4,6 +4,7 @@ cd "$(dirname "$0")"   # always run from infra/ regardless of where script is ca
 
 SENDER=sender@example.com
 RECIPIENT=test@example.com
+SLACK_SECRET_NAME=research-raidar-dev/slack-webhook
 CONFIG_ENV=dev
 
 uv venv --allow-existing
@@ -13,7 +14,8 @@ uv pip install -r requirements.txt
 cdk deploy \
   --method=direct \
   --parameters SesSender=$SENDER \
-  --parameters SesRecipient=$RECIPIENT
+  --parameters SesRecipient=$RECIPIENT \
+  --parameters SlackWebhookSecretName=$SLACK_SECRET_NAME
 
 echo ""
 echo "Uploading assets to s3://research-raidar-${CONFIG_ENV} ..."

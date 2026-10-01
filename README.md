@@ -54,6 +54,19 @@ uv run pytest
 RUN_INTEGRATION_TESTS=1 uv run pytest tests/integration -s
 ```
 
+## Slack integration (optional)
+
+1. Create a [Slack incoming webhook](https://api.slack.com/messaging/webhooks) for your target channel
+2. Store the webhook URL in Secrets Manager:
+   ```bash
+   aws secretsmanager create-secret \
+     --name research-raidar-dev/slack-webhook \
+     --secret-string "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+   ```
+3. Deploy — the `deploy.sh` script passes the secret name automatically
+
+The digest is sent to both email and Slack. If the secret doesn't exist or the env var is empty, Slack is silently skipped.
+
 ## Tuning
 
 All tuneable settings live in **`config/config.json`**. Edit the file and re-run
@@ -69,7 +82,7 @@ Key fields:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `categories` | `["q-bio.GN", ...]` | arXiv category codes. Full list: https://arxiv.org/category_taxonomy |
-| `min_score` | `60` | Papers below this score (1–100 scale) are excluded from the digest |
+| `min_score` | `75` | Papers below this score (1–100 scale) are excluded from the digest |
 | `top_n` | `5` | Max papers included regardless of score |
 | `research_interests` | *(your interests)* | Most important tuning lever — be specific |
 | `scoring_system` | *(prompt template)* | Full Claude prompt; use `[RESEARCH_INTERESTS]` as placeholder |

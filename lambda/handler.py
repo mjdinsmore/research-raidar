@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import boto3
 import biorxiv_client
 import email_client
+import slack_client
 from arxiv_client import RateLimitError, fetch_recent_papers
 
 # ── Config environment ─────────────────────────────────────────────────────────
@@ -169,7 +170,13 @@ def handler(event, context):
         return {"statusCode": 200, "body": "no qualifying papers"}
 
     email_client.send_digest(top, len(papers), categories)
-    print(f"Digest sent: {len(top)} papers")
+    print(f"Email digest sent: {len(top)} papers")
+
+    try:
+        slack_client.send_digest(top, len(papers), categories)
+        print("Slack digest sent")
+    except Exception as e:
+        print(f"Slack delivery failed (non-fatal): {e}")
 
     return {
         "statusCode": 200,

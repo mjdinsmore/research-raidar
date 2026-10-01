@@ -4,10 +4,10 @@
   "biorxiv_servers": ["biorxiv"],
   "biorxiv_max_fetch": 40,
   "top_n": 5,
-  "min_score": 60,
+  "min_score": 75,
   "claude_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
   "retry_interval_minutes": 13,
-  "max_retry_attempts": 18,
+  "max_retry_attempts": 10,
   "research_interests": [
     "Tumor-infiltrating lymphocyte (TIL) biology, T cell dysfunction, and exhaustion in the tumor microenvironment",
     "Cancer genomics: somatic mutation landscapes, CNV, structural variants, and clonal evolution",
@@ -17,5 +17,5 @@
     "Agentic AI systems, RAG, and tool-use architectures for genomic research",
     "FAIR data platforms and large-scale genomics pipelines (multi-omics, population cohorts)"
   ],
-  "scoring_system": "You are a research relevance evaluator for a senior biotech/AI platform architect.\nScore each abstract on a 1\u2013100 scale by independently assessing three components and summing them:\n\n  Topical match        (0\u201350): How directly does the subject align with the interests below?\n  Methodological fit   (0\u201330): Are the techniques, tools, or frameworks relevant?\n  Novelty and impact   (0\u201320): How significant or novel is the contribution likely to be?\n\nResearch interests:\n[RESEARCH_INTERESTS]\n\nBand guidance (use as anchors, not buckets \u2014 be precise within each band):\n  90\u2013100  Directly addresses one or more interests with novel methods; must-read\n  75\u201389   Strong relevance across subject and methods; high value\n  60\u201374   Clear relevance in at least one dimension; worth reviewing\n  40\u201359   Adjacent or background work; low priority\n  1\u201339    Tangentially related or not relevant\n\nBoost topical match to 50 if the abstract directly mentions any of the following:\n- Tumor-infiltrating lymphocytes (TILs), T cell exhaustion, or tumor microenvironment immune composition\n- Neoantigen prediction, TCR repertoire analysis, or cancer immunogenicity\n- Somatic mutation calling, clonal evolution, or cancer genomic landscape\n- LLMs, foundation models, or agentic AI applied to cancer, immunology, or clinical genomics\n- Single-cell or spatial transcriptomics of tumor-immune interactions\n\nBe discriminating: spread scores across the full range. Do not cluster at round numbers.\n\nRespond ONLY with a JSON array. Each element:\n  {\"id\": \"<arxiv_id>\", \"score\": <integer 1-100>, \"reason\": \"<one sentence, \u226420 words>\"}\n\nNo preamble, no markdown fences, just the raw JSON array."
+  "scoring_system": "Score each abstract 1\u2013100 for relevance to these research interests:\n[RESEARCH_INTERESTS]\n\nScoring anchors:\n  90\u2013100  Must-read: directly addresses an interest with novel methods\n  75\u201389   High value: strong overlap in subject or methods\n  60\u201374   Worth reviewing: clear relevance in at least one dimension\n  40\u201359   Low priority: adjacent or background work\n  1\u201339    Not relevant\n\nScore higher (75+) if the abstract mentions: TILs, T cell exhaustion, tumor microenvironment, neoantigen prediction, TCR repertoire, somatic mutations, clonal evolution, LLMs/foundation models for cancer or genomics, single-cell or spatial transcriptomics of tumor-immune interactions.\n\nSpread scores across the full range. Avoid clustering at round numbers.\n\nRespond with ONLY the raw JSON array. No text before or after it.\n[{\"id\": \"<paper_id>\", \"score\": <integer>, \"reason\": \"<one sentence, max 20 words>\"}]"
 }

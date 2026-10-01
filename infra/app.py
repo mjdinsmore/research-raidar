@@ -62,6 +62,11 @@ class ResearchRAIdarStack(Stack):
             description="Digest recipient address",
             default="you@example.com",
         )
+        slack_webhook_secret_name = cdk.CfnParameter(
+            self, "SlackWebhookSecretName",
+            description="Secrets Manager secret name for Slack webhook URL (leave empty to disable)",
+            default="",
+        )
 
         # ── S3 config bucket ──────────────────────────────────────────────────
 
@@ -105,6 +110,7 @@ class ResearchRAIdarStack(Stack):
                 "SES_SENDER":          ses_sender.value_as_string,
                 "SES_RECIPIENT":       ses_recipient.value_as_string,
                 "CONFIG_ENV": CONFIG_ENV,
+                "RAIDAR_SLACK_WEBHOOK_SECRET_NAME": slack_webhook_secret_name.value_as_string,
                 # All other tuning (categories, scoring, interests) lives in
                 # s3://research-raidar-{CONFIG_ENV}/config.json
             },
@@ -137,6 +143,15 @@ class ResearchRAIdarStack(Stack):
                     "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku*",
                     f"arn:aws:bedrock:*:{cdk.Aws.ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku*",
                 ],
+            )
+        )
+
+        # ── Secrets Manager permission (Slack webhook) ────────────────────────
+
+        fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["secretsmanager:GetSecretValue"],
+                resources=[f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:research-raidar-*"],
             )
         )
 
