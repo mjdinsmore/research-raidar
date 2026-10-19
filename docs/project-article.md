@@ -29,7 +29,7 @@ The entire configuration (categories, scoring thresholds, research interests, an
 
 ### Sample Digest Email
 
-*(See attached screenshot)*
+![Sample Digest Email](research-rAIdar-digest.png)
 
 Each paper in the digest shows:
 - **Full title** as a clickable link to arXiv
@@ -41,7 +41,7 @@ Each paper in the digest shows:
 
 ## Technical Architecture
 
-*(See attached architecture diagram)*
+![Research rAIdar Architecture](research-rAIdar-arch.png)
 
 The stack is entirely serverless and deployed via **AWS CDK** (Infrastructure as Code).
 

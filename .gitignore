@@ -27,5 +27,8 @@ infra/cdk.out/
 .env
 .env.*
 
+# Task tracking
+tasks/
+
 # macOS
 .DS_Store
