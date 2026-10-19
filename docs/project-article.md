@@ -130,9 +130,9 @@ The digest is delivered to **Slack** alongside email, sent as a rich message via
 
 ## Market Impact / Conclusion
 
-arXiv publishes over **200,000 papers per year** across STEM disciplines. Any researcher, engineer, student, or independent learner who needs to stay current with this literature (whether in AI, physics, economics, climate science, or mathematics) has no good tool for automated, *personalized* relevance filtering.
+arXiv publishes over **200,000 papers per year** across STEM disciplines, and bioRxiv and medRxiv add tens of thousands more in the life sciences. Any researcher, engineer, student, or independent learner who needs to stay current with this literature (whether in AI, genomics, immunology, physics, or clinical research) has no good tool for automated, *personalized* relevance filtering across multiple preprint sources.
 
-Research rAIdar demonstrates that **a fully serverless, AI-native pipeline can solve this problem for under $5/year**, with no infrastructure to maintain, no data stored, and no vendor lock-in beyond AWS and arXiv's free public API.
+Research rAIdar demonstrates that **a fully serverless, AI-native pipeline can solve this problem for under $5/year**, with no infrastructure to maintain, no data stored, and no vendor lock-in beyond AWS and the free public APIs of arXiv and bioRxiv.
 
 The same pattern (daily fetch → AI scoring → ranked delivery) generalizes to any domain with a structured content feed: SEC filings, clinical trial registries, patent databases, GitHub release notes, or news APIs. Research rAIdar is the proof-of-concept that this architecture works.
 
