@@ -1,6 +1,6 @@
 # Research rAIdar
 
-Daily digest of arXiv, bioXiv and other papers scored for relevance by Claude (via Bedrock), delivered via SES.
+Daily digest of arXiv, bioRxiv and medRxiv papers scored for relevance by Claude (via Bedrock), delivered via SES and Slack.
 
 ## Project layout
 
@@ -86,6 +86,8 @@ Key fields:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `categories` | `["q-bio.GN", ...]` | arXiv category codes. Full list: https://arxiv.org/category_taxonomy |
+| `biorxiv_servers` | `["biorxiv"]` | CSHL servers to fetch from: `"biorxiv"`, `"medrxiv"`, or both |
+| `biorxiv_max_fetch` | `40` | Max bioRxiv/medRxiv papers to fetch per run (0 to disable) |
 | `min_score` | `75` | Papers below this score (1–100 scale) are excluded from the digest |
 | `top_n` | `5` | Max papers included regardless of score |
 | `research_interests` | *(your interests)* | Most important tuning lever — be specific |
@@ -102,11 +104,14 @@ EventBridge cron is `30 6 * * ? *` (06:30 UTC). Edit in `infra/app.py` to match
 your timezone. arXiv posts new submissions around 00:00 UTC, so 06:00–08:00 UTC
 is a good window.
 
-### arXiv rate limit retries
+### Rate limit retries
 If arXiv returns HTTP 429, the Lambda schedules a retry via EventBridge Scheduler
 13 minutes later, passing the attempt count in the event payload. It retries up to
 18 times (~4 hours total) before giving up. The 13-minute interval is intentionally
 odd to avoid re-syncing with other clients polling on regular intervals.
+
+If bioRxiv/medRxiv is rate limited, the Lambda logs a warning and continues with
+arXiv results only — it does not block the entire digest.
 
 ## Cost estimate (rough)
 

@@ -4,11 +4,11 @@
 
 ## Introduction / Vision
 
-Researchers, engineers, students, and curious professionals face a relentless challenge: **arXiv publishes hundreds of new papers every single day**, spanning physics, mathematics, computer science, economics, and beyond. Staying current is a full-time job that nobody has time for.
+Researchers, engineers, students, and curious professionals face a relentless challenge: **arXiv publishes hundreds of new papers every single day**, spanning physics, mathematics, computer science, economics, and beyond — and **bioRxiv and medRxiv** add thousands more across the life sciences. Staying current is a full-time job that nobody has time for.
 
-The traditional solution (subscribing to arXiv email digests) delivers raw, unsorted paper lists with no sense of relevance to *your* specific interests. You either skim past papers that matter, or waste thirty minutes reading abstracts that don't.
+The traditional solution (subscribing to email digests) delivers raw, unsorted paper lists with no sense of relevance to *your* specific interests. You either skim past papers that matter, or waste thirty minutes reading abstracts that don't.
 
-**Research rAIdar** solves this with a fully serverless, AI-powered pipeline that wakes up every morning, fetches the latest papers, scores each one against *your* research interests using Claude on Amazon Bedrock, and delivers a ranked, beautifully formatted digest straight to your inbox, all for less than 50 cents a month.
+**Research rAIdar** solves this with a fully serverless, AI-powered pipeline that wakes up every morning, fetches the latest papers from arXiv, bioRxiv, and medRxiv, scores each one against *your* research interests using Claude on Amazon Bedrock, and delivers a ranked, beautifully formatted digest to your inbox and Slack, all for less than 50 cents a month.
 
 > *"Stop reading what's new. Start reading what matters."*
 
@@ -20,10 +20,10 @@ Research rAIdar is a **personal research intelligence assistant**: configurable,
 
 Each morning at 06:30 UTC (after arXiv's nightly submission processing), the pipeline:
 
-1. **Fetches** up to 80 recent papers from your chosen arXiv categories (genomics, AI, quantitative biology, or any of arXiv's 150+ subject areas)
-2. **Scores** every abstract against your stated research interests using Claude Haiku via Amazon Bedrock, rated 1–10 for relevance with a one-sentence reason
+1. **Fetches** up to 80 recent papers from your chosen arXiv categories (genomics, AI, quantitative biology, or any of arXiv's 150+ subject areas) and up to 40 from bioRxiv/medRxiv
+2. **Scores** every abstract against your stated research interests using Claude Haiku via Amazon Bedrock, rated 1–100 for relevance with a one-sentence reason
 3. **Filters** to only the top papers above your minimum relevance threshold
-4. **Delivers** a ranked HTML digest email via Amazon SES, with clickable titles linking directly to each paper on arXiv
+4. **Delivers** a ranked HTML digest via Amazon SES email and Slack, with clickable titles linking directly to each paper
 
 The entire configuration (categories, scoring thresholds, research interests, and the Claude prompt template) lives in a single `config.json` file in S3. **No redeployment needed to retune**: edit the file, upload it, and tomorrow's digest reflects your changes instantly.
 
@@ -53,6 +53,7 @@ The stack is entirely serverless and deployed via **AWS CDK** (Infrastructure as
 | **Amazon EventBridge** | Daily cron trigger at 06:30 UTC |
 | **Amazon Bedrock** (Claude Haiku) | AI relevance scoring of abstracts |
 | **Amazon SES** | HTML digest email delivery |
+| **AWS Secrets Manager** | Slack webhook URL storage |
 | **Amazon S3** | Config file storage (`config.json`) |
 | **EventBridge Scheduler** | Retry scheduling on arXiv rate limits |
 | **Amazon CloudWatch Logs** | Lambda execution logging |
@@ -64,6 +65,8 @@ The stack is entirely serverless and deployed via **AWS CDK** (Infrastructure as
 **No API keys.** Claude access is handled entirely through IAM, with no Anthropic API key to manage, rotate, or secure. Bedrock's IAM-native auth means the Lambda simply calls `bedrock-runtime` with its execution role.
 
 **S3-backed config with warm-Lambda caching.** All tuning parameters live in `s3://research-raidar-{env}/config.json`. The Lambda caches the config in memory, and warm container reuse means zero extra S3 calls after the first invocation of the day.
+
+**Multi-source aggregation.** Papers are fetched from both arXiv (via its Atom API) and bioRxiv/medRxiv (via the CSHL API). bioRxiv/medRxiv sources are configurable — enable one, both, or neither. If bioRxiv is rate-limited, the digest continues with arXiv results only rather than failing entirely.
 
 **Resilient retry logic.** arXiv's API occasionally rate-limits clients (HTTP 429). Rather than failing silently, the Lambda schedules a one-time retry via EventBridge Scheduler, 13 minutes later, passing the attempt count in the event payload. It retries up to 18 times (~4 hours) before giving up, using a prime-number interval to avoid re-synchronizing with other polling clients.
 
@@ -82,7 +85,7 @@ A single script: creates the virtualenv, runs `cdk deploy`, and uploads `config.
 | Resource | Est. monthly |
 |---|---|
 | Lambda (5 min/day, 512 MB) | ~$0.01 |
-| Claude Haiku via Bedrock (80 abstracts/day) | ~$0.40 |
+| Claude Haiku via Bedrock (~120 abstracts/day) | ~$0.40 |
 | SES (1 email/day) | ~$0.00 |
 | S3 (config file, ~30 GETs/month) | ~$0.00 |
 | **Total** | **~$0.40/month** |
@@ -101,28 +104,21 @@ A particularly valuable feature of Kiro is its **spec-driven development workflo
 
 The working MVP is live and running daily. It has successfully:
 
-- Fetched and scored papers across multiple arXiv subject areas simultaneously
-- Delivered ranked digests surfacing the most relevant papers from dozens of daily submissions, with Claude's one-sentence reason for each
+- Fetched and scored papers across multiple arXiv subject areas and bioRxiv/medRxiv simultaneously
+- Delivered ranked digests surfacing the most relevant papers from dozens of daily submissions, with Claude's one-sentence reason for each, via both email and Slack
 - Survived and recovered from arXiv rate-limiting events via the automated retry system
-- Passed a full unit test suite (29 tests) with mocked AWS services and a live integration test against the real arXiv API
+- Passed a full unit test suite (49 tests) with mocked AWS services and live integration tests against the real arXiv API
 
 
 ---
 
-## TODO: Enhancements & Next Steps
+## Enhancements & Next Steps
 
-### Slack Delivery (In Progress)
+### Slack Delivery ✓
 
-The next planned delivery channel is **Slack**, sending the digest as a rich message to a private channel or DM. The architecture already anticipates this:
+The digest is delivered to **Slack** alongside email, sent as a rich message via an incoming webhook. The Slack webhook URL is stored in AWS Secrets Manager and passed to the Lambda at deploy time. If the secret doesn't exist, Slack delivery is silently skipped.
 
-- A `slack_client.py` module will mirror the `email_client.py` interface (`send_digest(top_papers, total_fetched, categories)`)
-- The Lambda handler will route to either client (or both) based on `config.json` settings
-- Slack Block Kit will be used for rich formatting: paper titles as links, score badges as context blocks, Claude's reason as the main body text
-- Auth via AWS Secrets Manager storing the Slack Bot token (scopes: `chat:write`, `channels:read`)
-
-This is already reflected in the architecture diagram as a parallel delivery path alongside SES.
-
-### Additional Planned Enhancements
+### Planned Enhancements
 
 - **Multi-user support:** per-user config files in S3 (`config/{user-id}/config.json`) with a shared Lambda
 - **Feedback loop:** users rate papers in the digest; ratings stored in DynamoDB to fine-tune the scoring prompt over time
