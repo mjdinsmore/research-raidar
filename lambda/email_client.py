@@ -13,7 +13,8 @@ SES_SENDER    = os.environ["SES_SENDER"]
 SES_RECIPIENT = os.environ["SES_RECIPIENT"]
 SES_REGION    = os.environ.get("SES_REGION", os.environ.get("AWS_REGION", "us-east-1"))
 CONFIG_ENV    = os.environ.get("CONFIG_ENV", "dev")
-CONFIG_BUCKET = f"research-raidar-{CONFIG_ENV}"
+RAIDAR_BASE   = os.environ.get("RAIDAR_BASE_BUCKET", "research-raidar")
+CONFIG_BUCKET = f"{RAIDAR_BASE}-{CONFIG_ENV}"
 LOGO_S3_KEY   = "research-raidar-logo.png"
 
 # ── Logo cache (warm Lambda reuse) ────────────────────────────────────────────

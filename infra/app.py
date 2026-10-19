@@ -27,6 +27,7 @@ from constructs import Construct
 APP_NAME   = "Research-rAIdar"
 APP_DISPLAY_NAME = "Research rAIdar"
 CONFIG_ENV = "dev"
+BASE_BUCKET = os.environ.get("RAIDAR_BASE_BUCKET", "research-raidar")
 
 _pyproject = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
 APP_VERSION = _pyproject["project"]["version"]
@@ -70,7 +71,7 @@ class ResearchRAIdarStack(Stack):
 
         # ── S3 config bucket ──────────────────────────────────────────────────
 
-        config_bucket_name = f"research-raidar-{CONFIG_ENV}"
+        config_bucket_name = f"{BASE_BUCKET}-{CONFIG_ENV}"
 
         config_bucket = s3.Bucket(
             self, "ConfigBucket",
@@ -84,7 +85,7 @@ class ResearchRAIdarStack(Stack):
 
         fn = lambda_.Function(
             self, "ResearchRAIdarFn",
-            function_name="research-raidar",
+            function_name=BASE_BUCKET,
             description="Fetches recent research papers, scores them for relevance via Bedrock, and delivers a daily digest via SES.",
             runtime=lambda_.Runtime.PYTHON_3_13,
             architecture=Architecture.ARM_64,
@@ -110,6 +111,7 @@ class ResearchRAIdarStack(Stack):
                 "SES_SENDER":          ses_sender.value_as_string,
                 "SES_RECIPIENT":       ses_recipient.value_as_string,
                 "CONFIG_ENV": CONFIG_ENV,
+                "RAIDAR_BASE_BUCKET": BASE_BUCKET,
                 "RAIDAR_SLACK_WEBHOOK_SECRET_NAME": slack_webhook_secret_name.value_as_string,
                 # All other tuning (categories, scoring, interests) lives in
                 # s3://research-raidar-{CONFIG_ENV}/config.json
@@ -151,7 +153,7 @@ class ResearchRAIdarStack(Stack):
         fn.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["secretsmanager:GetSecretValue"],
-                resources=[f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:research-raidar-*"],
+                resources=[f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:{BASE_BUCKET}-*"],
             )
         )
 
@@ -168,7 +170,7 @@ class ResearchRAIdarStack(Stack):
         fn.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["scheduler:CreateSchedule"],
-                resources=[f"arn:aws:scheduler:{self.region}:{self.account}:schedule/default/research-raidar-retry-*"],
+                resources=[f"arn:aws:scheduler:{self.region}:{self.account}:schedule/default/{BASE_BUCKET}-retry-*"],
             )
         )
         fn.add_to_role_policy(

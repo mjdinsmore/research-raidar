@@ -3,7 +3,7 @@ arXiv Daily Radar — Lambda handler
 Fetches recent papers from configured categories, scores them for relevance
 using Claude via Bedrock, and delivers a digest.
 
-Configuration is loaded from s3://research-raidar-{CONFIG_ENV}/config.json and
+Configuration is loaded from s3://{RAIDAR_BASE_BUCKET}-{CONFIG_ENV}/config.json and
 cached for the lifetime of a warm Lambda container.
 """
 
@@ -21,7 +21,8 @@ from arxiv_client import RateLimitError, fetch_recent_papers
 # ── Config environment ─────────────────────────────────────────────────────────
 
 CONFIG_ENV    = os.environ.get("CONFIG_ENV", "dev")
-CONFIG_BUCKET = f"research-raidar-{CONFIG_ENV}"
+RAIDAR_BASE   = os.environ.get("RAIDAR_BASE_BUCKET", "research-raidar")
+CONFIG_BUCKET = f"{RAIDAR_BASE}-{CONFIG_ENV}"
 
 # ── S3-backed config with warm-Lambda caching ──────────────────────────────────
 
@@ -87,7 +88,7 @@ def score_papers(papers: list[dict], scoring_system: str, claude_model: str) -> 
 
 def _schedule_retry(attempt: int, fn_arn: str, retry_interval_minutes: int) -> None:
     run_at = datetime.now(timezone.utc) + timedelta(minutes=retry_interval_minutes)
-    name   = f"research-raidar-retry-{attempt}-{run_at.strftime('%Y%m%d')}"
+    name   = f"{RAIDAR_BASE}-retry-{attempt}-{run_at.strftime('%Y%m%d')}"
     scheduler = boto3.client("scheduler")
     try:
         scheduler.create_schedule(

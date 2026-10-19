@@ -27,6 +27,9 @@ CDK picks up your account and region automatically from your AWS credentials/pro
 cd infra && ./deploy.sh
 ```
 
+Set `RAIDAR_BASE_BUCKET` to override the default S3 bucket prefix (`research-raidar`).
+The deploy script appends `-dev` automatically, so `RAIDAR_BASE_BUCKET=my-papers` creates `my-papers-dev`.
+
 ## Test locally
 
 ```bash
@@ -35,7 +38,8 @@ uv pip install -r requirements.txt
 
 export SES_SENDER=michael@company.com
 export SES_RECIPIENT=michael@company.com
-export CONFIG_ENV=dev           # reads s3://research-raidar-dev/config.json
+export CONFIG_ENV=dev                              # env suffix
+export RAIDAR_BASE_BUCKET=research-raidar          # optional, default shown
 
 python -c "import handler; print(handler.handler({}, None))"
 ```
@@ -74,7 +78,7 @@ All tuneable settings live in **`config/config.json`**. Edit the file and re-run
 No Lambda redeployment is needed for config-only changes; just run:
 
 ```bash
-aws s3 cp config/config.json s3://research-raidar-dev/config.json
+aws s3 cp config/config.json s3://${RAIDAR_BASE_BUCKET:-research-raidar}-dev/config.json
 ```
 
 Key fields:
